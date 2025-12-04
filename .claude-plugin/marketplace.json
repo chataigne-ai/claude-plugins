@@ -1,0 +1,13 @@
+{
+  "name": "chataigne-plugins",
+  "owner": {
+    "name": "Chataigne"
+  },
+  "plugins": [
+    {
+      "name": "catalog-builder",
+      "source": "./catalog-builder",
+      "description": "Extract restaurant menus and images from websites and Uber Eats to create Chataigne catalog JSON files"
+    }
+  ]
+}

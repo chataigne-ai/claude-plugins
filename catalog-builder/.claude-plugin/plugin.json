@@ -1,0 +1,10 @@
+{
+  "name": "catalog-builder",
+  "version": "1.0.0",
+  "description": "Extract restaurant menus and images from websites and Uber Eats to create Chataigne catalog JSON files",
+  "author": {
+    "name": "Chataigne",
+    "email": "dev@chataigne.ai"
+  },
+  "keywords": ["restaurant", "menu", "catalog", "uber-eats", "chataigne", "extraction"]
+}

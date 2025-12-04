@@ -1,0 +1,250 @@
+---
+name: Catalog Schema
+description: This skill should be used when the user asks to "create a catalog", "build a menu JSON", "understand the catalog format", "add products to catalog", "create option lists", "structure menu data", or needs guidance on Chataigne's catalog JSON schema for restaurant menus.
+version: 1.0.0
+---
+
+# Chataigne Catalog Schema
+
+This skill provides comprehensive knowledge of the Chataigne catalog JSON schema used for restaurant menu data.
+
+## Schema Overview
+
+A Chataigne catalog is a JSON structure containing:
+
+```json
+{
+  "catalog": {
+    "name": "Restaurant Name",
+    "settings": { "primaryCategories": [...] },
+    "optionLists": [...],
+    "options": [...],
+    "categories": [...],
+    "products": [...]
+  }
+}
+```
+
+## Core Entities
+
+### Settings
+
+Controls display order and preferences:
+
+```json
+"settings": {
+  "primaryCategories": [
+    "Starters",
+    "Main Courses",
+    "Desserts",
+    "Drinks"
+  ]
+}
+```
+
+The `primaryCategories` array determines menu section ordering in the UI.
+
+### Categories
+
+Menu sections that group products:
+
+```json
+{
+  "name": "Pizza Social Club 🍕",
+  "ref": "PIZZAS"
+}
+```
+
+- **name**: Display name (can include emojis)
+- **ref**: Unique identifier (UPPERCASE_SNAKE_CASE)
+
+### Option Lists
+
+Groups of modifiers that can be attached to products:
+
+```json
+{
+  "name": "Suppléments Pizza",
+  "ref": "SUPPLEMENTS_PIZZA",
+  "minSelections": 0,
+  "maxSelections": 10
+}
+```
+
+- **name**: Display name for the option group
+- **ref**: Unique identifier
+- **minSelections**: Minimum required selections (0 = optional)
+- **maxSelections**: Maximum allowed selections
+
+### Options
+
+Individual modifiers within option lists:
+
+```json
+{
+  "name": "Truffe fraîche",
+  "ref": "TRUFFE_SUPPLEMENT",
+  "optionListName": "Suppléments Pizza",
+  "price": {
+    "amount": 4.5,
+    "currency": "EUR"
+  },
+  "available": true
+}
+```
+
+- **optionListName**: Foreign key to the option list (by name, not ref)
+- **price**: Can be 0 for free options
+
+### Products
+
+Menu items with pricing and options:
+
+```json
+{
+  "name": "Truffle Mafia",
+  "description": "Crème de truffe, mozzarella fior di latte, champignons...",
+  "categoryName": "Pizza Social Club 🍕",
+  "imageUrl": "https://cdn.example.com/image.webp",
+  "available": true,
+  "sku": {
+    "price": {
+      "amount": 22,
+      "currency": "EUR"
+    },
+    "optionListNames": ["Suppléments Pizza", "Découpe Pizza"]
+  }
+}
+```
+
+**Critical relationships:**
+- **categoryName**: References category by `name` (not ref)
+- **optionListNames**: Array of option list names that apply to this product
+
+## Key Schema Rules
+
+### Foreign Keys by Name
+
+Unlike typical databases, Chataigne uses **name-based foreign keys**:
+
+| Field | References | By |
+|-------|------------|-----|
+| `product.categoryName` | `category.name` | name |
+| `product.sku.optionListNames` | `optionList.name` | name |
+| `option.optionListName` | `optionList.name` | name |
+
+This makes the JSON human-readable but requires exact string matching.
+
+### Required Fields
+
+**Categories**: `name`, `ref`
+**Option Lists**: `name`, `ref`, `minSelections`, `maxSelections`
+**Options**: `name`, `ref`, `optionListName`, `price`, `available`
+**Products**: `name`, `categoryName`, `available`, `sku` (with `price`)
+
+### Optional Fields
+
+**Products**: `description`, `imageUrl`, `sku.optionListNames`
+
+### Currency Format
+
+Always use ISO 4217 currency codes:
+
+```json
+"price": {
+  "amount": 15.50,
+  "currency": "EUR"
+}
+```
+
+## Common Patterns
+
+### Pizza with Toppings
+
+```json
+// Option list for toppings
+{
+  "name": "Pizza Toppings",
+  "ref": "PIZZA_TOPPINGS",
+  "minSelections": 0,
+  "maxSelections": 5
+}
+
+// Individual topping options
+{
+  "name": "Extra Cheese",
+  "ref": "EXTRA_CHEESE",
+  "optionListName": "Pizza Toppings",
+  "price": { "amount": 2.5, "currency": "EUR" },
+  "available": true
+}
+
+// Pizza product with toppings
+{
+  "name": "Margherita",
+  "categoryName": "Pizzas",
+  "sku": {
+    "price": { "amount": 12, "currency": "EUR" },
+    "optionListNames": ["Pizza Toppings"]
+  }
+}
+```
+
+### Kids Menu with Choices
+
+For combo meals with required selections:
+
+```json
+// Required main course choice
+{
+  "name": "Kids Main Choice",
+  "ref": "KIDS_MAIN",
+  "minSelections": 1,
+  "maxSelections": 1
+}
+
+// Options for the choice
+{
+  "name": "Mini Pizza",
+  "ref": "KIDS_PIZZA",
+  "optionListName": "Kids Main Choice",
+  "price": { "amount": 0, "currency": "EUR" },
+  "available": true
+}
+
+// Kids menu product
+{
+  "name": "Kids Menu",
+  "categoryName": "Menus",
+  "sku": {
+    "price": { "amount": 12, "currency": "EUR" },
+    "optionListNames": ["Kids Main Choice", "Kids Dessert Choice", "Kids Drink Choice"]
+  }
+}
+```
+
+## Catalog Creation Workflow
+
+1. **Gather source data**: Restaurant website, Uber Eats, provided menu
+2. **Define categories**: Create category objects for each menu section
+3. **Create option lists**: Identify modifier groups (toppings, sizes, etc.)
+4. **Add options**: Define individual modifiers for each list
+5. **Add products**: Create product entries with category/option references
+6. **Add images**: Extract and assign image URLs
+7. **Validate**: Run schema validation to check integrity
+
+## Additional Resources
+
+### Reference Files
+
+For complete examples and validation rules:
+- **`references/schema-rules.md`** - Detailed validation rules and constraints
+- **`examples/sample-catalog.json`** - Complete working catalog example
+
+### Validation
+
+Use the `/catalog-builder:validate` command to check catalog integrity:
+- Schema structure validation
+- Foreign key reference checking
+- Missing image detection
+- Duplicate ref detection

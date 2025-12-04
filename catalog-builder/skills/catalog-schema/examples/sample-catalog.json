@@ -1,0 +1,224 @@
+{
+  "catalog": {
+    "name": "Sample Italian Restaurant",
+    "settings": {
+      "primaryCategories": [
+        "Starters",
+        "Pizzas",
+        "Pasta",
+        "Desserts",
+        "Drinks"
+      ]
+    },
+    "optionLists": [
+      {
+        "name": "Pizza Toppings",
+        "ref": "PIZZA_TOPPINGS",
+        "minSelections": 0,
+        "maxSelections": 5
+      },
+      {
+        "name": "Pizza Size",
+        "ref": "PIZZA_SIZE",
+        "minSelections": 1,
+        "maxSelections": 1
+      },
+      {
+        "name": "Pasta Cooking",
+        "ref": "PASTA_COOKING",
+        "minSelections": 0,
+        "maxSelections": 1
+      }
+    ],
+    "options": [
+      {
+        "name": "Extra Mozzarella",
+        "ref": "EXTRA_MOZZARELLA",
+        "optionListName": "Pizza Toppings",
+        "price": {
+          "amount": 2.5,
+          "currency": "EUR"
+        },
+        "available": true
+      },
+      {
+        "name": "Prosciutto",
+        "ref": "PROSCIUTTO",
+        "optionListName": "Pizza Toppings",
+        "price": {
+          "amount": 3.5,
+          "currency": "EUR"
+        },
+        "available": true
+      },
+      {
+        "name": "Mushrooms",
+        "ref": "MUSHROOMS",
+        "optionListName": "Pizza Toppings",
+        "price": {
+          "amount": 1.5,
+          "currency": "EUR"
+        },
+        "available": true
+      },
+      {
+        "name": "Regular (30cm)",
+        "ref": "SIZE_REGULAR",
+        "optionListName": "Pizza Size",
+        "price": {
+          "amount": 0,
+          "currency": "EUR"
+        },
+        "available": true
+      },
+      {
+        "name": "Large (40cm)",
+        "ref": "SIZE_LARGE",
+        "optionListName": "Pizza Size",
+        "price": {
+          "amount": 5,
+          "currency": "EUR"
+        },
+        "available": true
+      },
+      {
+        "name": "Al Dente",
+        "ref": "AL_DENTE",
+        "optionListName": "Pasta Cooking",
+        "price": {
+          "amount": 0,
+          "currency": "EUR"
+        },
+        "available": true
+      },
+      {
+        "name": "Well Done",
+        "ref": "WELL_DONE",
+        "optionListName": "Pasta Cooking",
+        "price": {
+          "amount": 0,
+          "currency": "EUR"
+        },
+        "available": true
+      }
+    ],
+    "categories": [
+      {
+        "name": "Starters",
+        "ref": "STARTERS"
+      },
+      {
+        "name": "Pizzas",
+        "ref": "PIZZAS"
+      },
+      {
+        "name": "Pasta",
+        "ref": "PASTA"
+      },
+      {
+        "name": "Desserts",
+        "ref": "DESSERTS"
+      },
+      {
+        "name": "Drinks",
+        "ref": "DRINKS"
+      }
+    ],
+    "products": [
+      {
+        "name": "Bruschetta",
+        "description": "Toasted bread with fresh tomatoes, garlic, basil and olive oil",
+        "categoryName": "Starters",
+        "imageUrl": "https://example.com/images/bruschetta.jpg",
+        "available": true,
+        "sku": {
+          "price": {
+            "amount": 8,
+            "currency": "EUR"
+          }
+        }
+      },
+      {
+        "name": "Caprese Salad",
+        "description": "Fresh mozzarella, tomatoes, basil with balsamic glaze",
+        "categoryName": "Starters",
+        "imageUrl": "https://example.com/images/caprese.jpg",
+        "available": true,
+        "sku": {
+          "price": {
+            "amount": 12,
+            "currency": "EUR"
+          }
+        }
+      },
+      {
+        "name": "Margherita",
+        "description": "Tomato sauce, mozzarella, fresh basil",
+        "categoryName": "Pizzas",
+        "imageUrl": "https://example.com/images/margherita.jpg",
+        "available": true,
+        "sku": {
+          "price": {
+            "amount": 12,
+            "currency": "EUR"
+          },
+          "optionListNames": ["Pizza Size", "Pizza Toppings"]
+        }
+      },
+      {
+        "name": "Quattro Formaggi",
+        "description": "Mozzarella, gorgonzola, parmesan, and fontina cheese",
+        "categoryName": "Pizzas",
+        "imageUrl": "https://example.com/images/quattro-formaggi.jpg",
+        "available": true,
+        "sku": {
+          "price": {
+            "amount": 16,
+            "currency": "EUR"
+          },
+          "optionListNames": ["Pizza Size", "Pizza Toppings"]
+        }
+      },
+      {
+        "name": "Carbonara",
+        "description": "Spaghetti with egg, pecorino, guanciale, and black pepper",
+        "categoryName": "Pasta",
+        "imageUrl": "https://example.com/images/carbonara.jpg",
+        "available": true,
+        "sku": {
+          "price": {
+            "amount": 15,
+            "currency": "EUR"
+          },
+          "optionListNames": ["Pasta Cooking"]
+        }
+      },
+      {
+        "name": "Tiramisu",
+        "description": "Classic Italian dessert with mascarpone, coffee, and cocoa",
+        "categoryName": "Desserts",
+        "imageUrl": "https://example.com/images/tiramisu.jpg",
+        "available": true,
+        "sku": {
+          "price": {
+            "amount": 9,
+            "currency": "EUR"
+          }
+        }
+      },
+      {
+        "name": "Sparkling Water",
+        "description": "500ml bottle",
+        "categoryName": "Drinks",
+        "imageUrl": "",
+        "available": true,
+        "sku": {
+          "price": {
+            "amount": 3,
+            "currency": "EUR"
+          }
+        }
+      }
+    ]
+  }
+}
