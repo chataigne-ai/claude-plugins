@@ -1,4 +1,4 @@
-# Chataigne Claude Code Plugins
+# Claude Code Plugins
 
 Custom plugins for Claude Code to support Chataigne development workflows.
 
@@ -6,10 +6,10 @@ Custom plugins for Claude Code to support Chataigne development workflows.
 
 ```shell
 # Add the marketplace
-/plugin marketplace add chataigne-ai/claude-plugins
+/plugin marketplace add ubernion/claude-plugins
 
 # Install plugins
-/plugin install catalog-builder@chataigne-ai
+/plugin install catalog-builder@ubernion
 ```
 
 ## Available Plugins

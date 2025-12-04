@@ -1,7 +1,7 @@
 {
-  "name": "chataigne-plugins",
+  "name": "ubernion-plugins",
   "owner": {
-    "name": "Chataigne"
+    "name": "ubernion"
   },
   "plugins": [
     {
