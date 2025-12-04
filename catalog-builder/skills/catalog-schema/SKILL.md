@@ -121,6 +121,130 @@ Menu items with pricing and options:
 - **categoryName**: References category by `name` (not ref)
 - **optionListNames**: Array of option list names that apply to this product
 
+## ⚠️ Common Mistakes (IMPORTANT)
+
+These are the most frequent errors when creating catalogs:
+
+### 1. Using refs instead of names for foreign keys
+
+**WRONG** ❌
+```json
+{
+  "categoryRef": "PIZZAS",
+  "optionListRefs": ["TOPPINGS"]
+}
+```
+
+**CORRECT** ✅
+```json
+{
+  "categoryName": "Pizza Social Club 🍕",
+  "sku": {
+    "optionListNames": ["Suppléments Pizza"]
+  }
+}
+```
+
+### 2. Using refs in primaryCategories
+
+**WRONG** ❌
+```json
+"settings": {
+  "primaryCategories": ["PIZZAS", "DRINKS", "DESSERTS"]
+}
+```
+
+**CORRECT** ✅
+```json
+"settings": {
+  "primaryCategories": ["Pizza Social Club 🍕", "Boissons 🥤", "Desserts 🍦"]
+}
+```
+
+### 3. Using simple numbers for prices
+
+**WRONG** ❌
+```json
+"price": 15.50
+```
+
+**CORRECT** ✅
+```json
+"price": {
+  "amount": 15.50,
+  "currency": "EUR"
+}
+```
+
+### 4. Using wrong field names for option lists
+
+**WRONG** ❌
+```json
+{
+  "minChoices": 1,
+  "maxChoices": 5
+}
+```
+
+**CORRECT** ✅
+```json
+{
+  "minSelections": 1,
+  "maxSelections": 5
+}
+```
+
+### 5. Putting optionListNames at product root level
+
+**WRONG** ❌
+```json
+{
+  "name": "Margherita",
+  "optionListNames": ["Toppings"],
+  "price": { "amount": 12, "currency": "EUR" }
+}
+```
+
+**CORRECT** ✅
+```json
+{
+  "name": "Margherita",
+  "sku": {
+    "price": { "amount": 12, "currency": "EUR" },
+    "optionListNames": ["Toppings"]
+  }
+}
+```
+
+### 6. Forgetting images on OPTIONS
+
+Options can (and should!) have images too, not just products. Uber Eats extracts include images for drinks, sauces, sides, etc.
+
+**WRONG** ❌
+```json
+{
+  "name": "Coca-Cola",
+  "ref": "DRINK_COCA",
+  "optionListName": "Choix Boisson",
+  "price": { "amount": 0, "currency": "EUR" },
+  "available": true
+}
+```
+
+**CORRECT** ✅
+```json
+{
+  "name": "Coca-Cola",
+  "ref": "DRINK_COCA",
+  "optionListName": "Choix Boisson",
+  "price": { "amount": 0, "currency": "EUR" },
+  "available": true,
+  "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/..."
+}
+```
+
+---
+
 ## Key Schema Rules
 
 ### Foreign Keys by Name
@@ -129,11 +253,12 @@ Unlike typical databases, Chataigne uses **name-based foreign keys**:
 
 | Field | References | By |
 |-------|------------|-----|
+| `settings.primaryCategories` | `category.name` | name |
 | `product.categoryName` | `category.name` | name |
 | `product.sku.optionListNames` | `optionList.name` | name |
 | `option.optionListName` | `optionList.name` | name |
 
-This makes the JSON human-readable but requires exact string matching.
+This makes the JSON human-readable but requires exact string matching (including emojis!).
 
 ### Required Fields
 

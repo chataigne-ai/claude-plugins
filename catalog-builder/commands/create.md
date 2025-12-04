@@ -84,6 +84,19 @@ For each menu item:
 - Use Read tool to visually inspect images
 - Ask user to help identify ambiguous images
 - Map identified images to products
+- **Don't forget OPTIONS!** Uber Eats includes images for drinks, sauces, sides
+
+**🚀 For 50+ images, use parallel subagents:**
+```
+Launch 4 Task agents in parallel, each identifying a batch of images:
+- Agent 1: images 01-30
+- Agent 2: images 31-60
+- Agent 3: images 61-90
+- Agent 4: images 91-127
+
+Each returns a JSON mapping: {"01": "Whopper", "02": "Big King", ...}
+Combine results to build full image mapping ~4x faster.
+```
 
 ### Step 7: Generate Catalog JSON
 
@@ -127,10 +140,57 @@ Response:
 7. Generate and save catalog JSON
 8. Validate and report summary
 
+## ⚠️ Critical Schema Rules
+
+**ALL foreign keys use NAMES, not refs:**
+
+| Field | Must Reference |
+|-------|----------------|
+| `settings.primaryCategories` | Array of `category.name` values |
+| `product.categoryName` | The `category.name` (not ref!) |
+| `product.sku.optionListNames` | Array of `optionList.name` values |
+| `option.optionListName` | The `optionList.name` (not ref!) |
+
+**Correct structure for products:**
+```json
+{
+  "name": "Menu Whopper",
+  "ref": "MENU_WHOPPER",
+  "categoryName": "Menus 🍔",        // ← Use category NAME
+  "available": true,
+  "sku": {
+    "price": { "amount": 11.30, "currency": "EUR" },
+    "optionListNames": ["Choix Boisson", "Choix Accompagnement"]  // ← Use option list NAMES
+  }
+}
+```
+
+**Correct structure for options:**
+```json
+{
+  "name": "Coca-Cola",
+  "ref": "DRINK_COCA",
+  "optionListName": "Choix Boisson",  // ← Use option list NAME
+  "price": { "amount": 0, "currency": "EUR" },
+  "available": true
+}
+```
+
+**Correct structure for option lists:**
+```json
+{
+  "name": "Choix Boisson",
+  "ref": "DRINK_CHOICE",
+  "minSelections": 1,  // ← NOT minChoices!
+  "maxSelections": 1   // ← NOT maxChoices!
+}
+```
+
 ## Important Notes
 
 - Always confirm category structure with user before proceeding
 - For Uber Eats, focus on extracting JSON-LD data for accurate pricing
 - Exclude alcohol products unless user specifically requests them
 - Use UPPERCASE_SNAKE_CASE for all ref fields
-- Prices should use EUR currency code (or ask user for currency)
+- Prices must be objects: `{ "amount": X, "currency": "EUR" }`
+- Use category/option list NAMES (not refs) for all foreign key references

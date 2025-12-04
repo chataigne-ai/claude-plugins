@@ -230,6 +230,40 @@ When automated correlation fails:
 2. Use Read tool to view each image
 3. Manually identify and map to menu items
 
+### 🚀 Parallel Subagents Technique (RECOMMENDED)
+
+For large image sets (50+ images), use **parallel Task agents** to identify images ~4x faster:
+
+```
+Task 1: "Identify images 01-30 in /tmp/images/ - return JSON mapping of image number to product name"
+Task 2: "Identify images 31-60 in /tmp/images/ - return JSON mapping of image number to product name"
+Task 3: "Identify images 61-90 in /tmp/images/ - return JSON mapping of image number to product name"
+Task 4: "Identify images 91-127 in /tmp/images/ - return JSON mapping of image number to product name"
+```
+
+**Launch all 4 agents in parallel** (single message with multiple Task tool calls). Each agent:
+- Reads images in its assigned range using the Read tool
+- Identifies what product each image shows
+- Returns a JSON mapping like: `{"01": "Whopper", "02": "Big King", ...}`
+
+Then combine the results to build the full image mapping.
+
+**Sample agent prompt:**
+```
+You are helping identify Burger King product images for a catalog.
+
+Look at images 43 through 60 in /tmp/bk-images/ (files named 43.jpeg through 60.jpeg).
+
+For each image, identify what product it shows. Products we're looking for:
+- Burgers: Whopper, Big King, Steakhouse, Crispy Chicken, etc.
+- Snacks: Frites, Onion Rings, King Nuggets, Chili Cheese
+- Desserts: King Fusion variants, King Sundae, Donuts, Cookies
+- Drinks: Coca-Cola, Sprite, Fanta, Perrier, Vittel
+- Sauces: BBQ, Ketchup, Mayo, 1954, Spicy Andalouse
+
+Return a JSON mapping: {"43": {"product": "Whopper", "type": "burger"}, ...}
+```
+
 ## Scripts
 
 ### Uber Eats Extraction Script
@@ -257,3 +291,26 @@ This script:
 4. **Prefer HTTPS URLs** in the final catalog
 5. **Check image availability** before adding to catalog
 6. **Use high-quality variants** when multiple sizes exist
+7. **Add images to OPTIONS too!** - Uber Eats extracts include images for drinks, sauces, sides, and other options (not just products). These significantly improve the catalog quality.
+8. **Use parallel subagents** for 50+ images - split into batches of 20-30 images per agent for ~4x faster identification
+
+## Important: Option Images
+
+Uber Eats image extractions typically include images for:
+- **Drinks**: Coca-Cola, Sprite, Fanta, water bottles, juice
+- **Sauces**: Individual sauce cups (BBQ, mayo, ketchup, etc.)
+- **Sides**: Fries, onion rings, salads as standalone images
+- **Desserts**: Ice cream, donuts, cookies
+
+**Don't forget to assign these to your catalog options!** Options with images provide a much better ordering experience.
+
+```json
+{
+  "name": "Coca-Cola",
+  "ref": "DRINK_COCA",
+  "optionListName": "Choix Boisson",
+  "price": { "amount": 0, "currency": "EUR" },
+  "available": true,
+  "imageUrl": "https://tb-static.uber.com/prod/image-proc/..."  // ← Don't forget!
+}
+```
