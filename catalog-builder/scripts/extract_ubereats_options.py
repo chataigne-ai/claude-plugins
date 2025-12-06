@@ -27,8 +27,8 @@ from playwright.async_api import async_playwright
 
 # Default configuration
 DEFAULT_OUTPUT_DIR = "/tmp/ubereats_options"
-MAX_ITEMS_TO_CLICK = 100  # Set to None for all items
-WAIT_AFTER_CLICK = 2.0  # Seconds to wait after clicking each item
+MAX_ITEMS_TO_CLICK = None  # Set to None for all items
+API_RESPONSE_TIMEOUT = 5000  # Max ms to wait for API response after click
 BROWSER_TIMEOUT = 60000  # 60 seconds
 
 
@@ -48,7 +48,7 @@ async def extract_options(store_url: str, output_dir: str):
 
     async with async_playwright() as p:
         # Launch visible browser (headless=False) to see progress
-        browser = await p.chromium.launch(headless=False, slow_mo=50)
+        browser = await p.chromium.launch(headless=False)
         context = await browser.new_context(
             viewport={"width": 1400, "height": 900},
             locale="fr-FR"
@@ -93,22 +93,27 @@ async def extract_options(store_url: str, output_dir: str):
             store_url = store_url.replace("diningMode=DELIVERY", "diningMode=PICKUP")
 
         print(f"🌐 Opening: {store_url}")
-        await page.goto(store_url, timeout=BROWSER_TIMEOUT)
-        await asyncio.sleep(3)
+        await page.goto(store_url, timeout=BROWSER_TIMEOUT, wait_until="domcontentloaded")
 
         # Accept cookies if present
         try:
-            cookie_btn = await page.query_selector('button:has-text("Accept"), button:has-text("Accepter")')
+            cookie_btn = await page.wait_for_selector(
+                'button:has-text("Accept"), button:has-text("Accepter")',
+                timeout=3000
+            )
             if cookie_btn:
                 await cookie_btn.click()
                 print("🍪 Accepted cookies")
-                await asyncio.sleep(1)
         except:
             pass
 
-        # Wait for menu to fully load
+        # Wait for menu items to load (look for price indicators)
         print("⏳ Waiting for menu to load...")
-        await asyncio.sleep(5)
+        try:
+            await page.wait_for_selector('li:has-text("€")', timeout=15000)
+            print("✅ Menu loaded")
+        except:
+            print("⚠️  Menu load timeout, proceeding anyway...")
 
         # Take screenshot for reference
         screenshot_path = os.path.join(output_dir, "page_screenshot.png")
@@ -138,30 +143,58 @@ async def extract_options(store_url: str, output_dir: str):
         # Click each item to trigger API calls for customization data
         products_processed = []
 
+        def is_item_api_response(response):
+            """Check if response is an item/customization API call."""
+            url = response.url
+            return any(x in url for x in ["getMenuItemV1", "/item/", "eats.api"])
+
         for i, (item, name) in enumerate(items_to_process):
             try:
                 print(f"\n[{i+1}/{len(items_to_process)}] 👆 Clicking: {name}")
 
-                # Click the item
-                await item.click()
-                await asyncio.sleep(WAIT_AFTER_CLICK)
+                # Click and wait for API response simultaneously
+                try:
+                    async with page.expect_response(
+                        is_item_api_response,
+                        timeout=API_RESPONSE_TIMEOUT
+                    ) as response_info:
+                        await item.click()
 
-                # Check if modal opened
-                modal = await page.query_selector('[role="dialog"], [data-testid*="modal"]')
-                if modal:
-                    products_processed.append(name)
-                    print(f"  ✅ Modal opened for: {name}")
+                    # API response received
+                    response = await response_info.value
+                    print(f"  📡 API response received ({response.status})")
+                except Exception:
+                    # No API response within timeout, but modal might still open
+                    pass
 
-                    # Close modal
-                    await page.keyboard.press("Escape")
-                    await asyncio.sleep(0.5)
-                else:
+                # Wait for modal to appear (fast check)
+                try:
+                    modal = await page.wait_for_selector(
+                        '[role="dialog"], [data-testid*="modal"]',
+                        timeout=1000
+                    )
+                    if modal:
+                        products_processed.append(name)
+                        print(f"  ✅ Modal opened for: {name}")
+
+                        # Close modal immediately
+                        await page.keyboard.press("Escape")
+                        # Brief wait for modal close animation
+                        await page.wait_for_selector(
+                            '[role="dialog"], [data-testid*="modal"]',
+                            state="hidden",
+                            timeout=1000
+                        )
+                except Exception:
                     print(f"  ⚠️  No modal opened")
 
             except Exception as e:
                 print(f"  ❌ Error: {str(e)[:50]}")
-                await page.keyboard.press("Escape")
-                await asyncio.sleep(0.5)
+                try:
+                    await page.keyboard.press("Escape")
+                    await asyncio.sleep(0.3)
+                except:
+                    pass
 
         # Save summary
         summary = {
@@ -185,8 +218,8 @@ async def extract_options(store_url: str, output_dir: str):
         print(f"📋 Summary saved: {summary_path}")
 
         # Keep browser open briefly for inspection
-        print("\n⏳ Browser closing in 10 seconds...")
-        await asyncio.sleep(10)
+        print("\n⏳ Browser closing in 3 seconds...")
+        await asyncio.sleep(3)
 
         await browser.close()
 
