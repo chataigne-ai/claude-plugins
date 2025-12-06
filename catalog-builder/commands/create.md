@@ -234,9 +234,127 @@ Response:
 
 **IMPORTANT:** The JSON-LD data only contains products, NOT options/customizations!
 
-Options data (sizes, toppings, sauces, drink choices for menus) are embedded deeper in the page's React state. To extract them:
+Options data (sizes, toppings, sauces, drink choices for menus) requires a different approach. Use **Playwright browser automation** to click on products and capture the API responses that contain full customization data.
 
-1. **Search for customization patterns** in the HTML:
+### Method: Playwright API Capture (RECOMMENDED)
+
+This method opens a real browser, clicks on each product, and captures the API responses containing `customizationsList` data.
+
+**Setup:**
+```bash
+pip install playwright
+playwright install chromium
+```
+
+**Usage:**
+```bash
+python scripts/extract_ubereats_options.py \
+    "https://www.ubereats.com/fr-en/store/restaurant-name/store-id" \
+    /tmp/output_directory
+```
+
+The script is located at: `${CLAUDE_PLUGIN_ROOT}/scripts/extract_ubereats_options.py`
+
+**How it works:**
+1. Opens the store page in PICKUP mode (avoids address requirements)
+2. Finds all menu items with prices (€ symbol)
+3. Clicks each product to trigger API calls
+4. Captures responses from `eats.api`, `getMenuItemV1` endpoints
+5. Saves each response as `response_XXX.json`
+6. Generates `extraction_summary.json` with results
+
+**API Response Structure:**
+
+Each captured response contains:
+```json
+{
+  "data": {
+    "title": "Tacos XXL",
+    "itemTitle": "Tacos XXL",
+    "customizationsList": [
+      {
+        "title": "Taille au choix",
+        "minPermitted": 1,
+        "maxPermitted": 1,
+        "options": [
+          {
+            "title": "M (2 Viandes)",
+            "price": 0,
+            "childCustomizationList": [...]
+          },
+          {
+            "title": "XL (3 Viandes)",
+            "price": 200,
+            "childCustomizationList": [...]
+          }
+        ]
+      },
+      {
+        "title": "Sauces",
+        "minPermitted": 1,
+        "maxPermitted": 3,
+        "options": [
+          { "title": "Sauce Algérienne", "price": 0 },
+          { "title": "Sauce Blanche", "price": 0 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Key fields:**
+- `customizationsList[].title` → Option list name
+- `customizationsList[].minPermitted` → `minSelections` in catalog
+- `customizationsList[].maxPermitted` → `maxSelections` in catalog
+- `customizationsList[].options[].title` → Option name
+- `customizationsList[].options[].price` → Price in CENTS (divide by 100)
+- `customizationsList[].options[].childCustomizationList` → Nested options
+
+**Parsing the captured data:**
+
+```python
+import json
+import glob
+
+all_customizations = {}
+
+for filepath in sorted(glob.glob('/tmp/output/*.json')):
+    with open(filepath) as f:
+        data = json.load(f)
+
+    if 'data' not in data or 'customizationsList' not in data['data']:
+        continue
+
+    product_title = data['data'].get('title', 'Unknown')
+
+    for group in data['data']['customizationsList']:
+        option_list = {
+            "name": group['title'],
+            "minSelections": group.get('minPermitted', 0),
+            "maxSelections": group.get('maxPermitted', 1),
+            "options": [
+                {
+                    "name": opt['title'],
+                    "price": opt.get('price', 0) / 100  # Convert cents to EUR
+                }
+                for opt in group.get('options', [])
+            ]
+        }
+        # Store or merge option lists...
+```
+
+**Tips for successful extraction:**
+- Run with `headless=False` to watch the browser and debug issues
+- Increase `WAIT_AFTER_CLICK` if responses aren't being captured
+- Set `MAX_ITEMS_TO_CLICK = None` to process all products
+- The script automatically skips tiny responses (<1000 bytes)
+- Let it run for the full menu - don't interrupt early!
+
+### Alternative: Manual Pattern Search
+
+If Playwright isn't available, you can try searching the HTML for customization patterns:
+
 ```python
 # Look for customizationGroups or similar patterns
 pattern = r'"customization[^"]*":\s*\[.*?\]'
@@ -244,14 +362,9 @@ pattern = r'"customization[^"]*":\s*\[.*?\]'
 pattern = r'"title":"([^"]+)".*?"options":\[([^\]]+)\]'
 ```
 
-2. **Look for option group structures** containing:
-   - Group name (e.g., "Choix de la taille", "Sauces", "Boissons")
-   - Min/max selections
-   - Individual options with names and prices
+### Adding Images to Options
 
-3. **Match options to products** that reference them (menus typically have drink + side choices)
-
-4. **Add images to options** using the same product_images mapping extracted earlier:
+Use the product_images mapping extracted earlier to add images to matching options:
 ```python
 # Options like "Coca-Cola" can use the same image as the product "Coca-Cola®"
 option_to_product = {
@@ -260,8 +373,3 @@ option_to_product = {
     "Nuggets x4": "Nuggets",
 }
 ```
-
-**If options data is not found in the page**, you may need to:
-- Infer options from product descriptions (e.g., "Tailles et viandes au choix")
-- Ask the user to provide the customization options manually
-- Check if there's an API endpoint being called for product details
