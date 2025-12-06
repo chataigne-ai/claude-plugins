@@ -243,6 +243,50 @@ Options can (and should!) have images too, not just products. Uber Eats extracts
 }
 ```
 
+### 7. Using the SAME image URL for multiple products (CRITICAL!)
+
+When multiple products share the exact same `imageUrl`, Chataigne's import process downloads the image ONCE but only assigns the S3 URL to ONE product. All other products sharing that URL will have NO image after import!
+
+**WRONG** ❌ (All 3 formulas share same URL - only 1 will get the image!)
+```json
+[
+  {
+    "name": "4 ingrédients + Boisson",
+    "imageUrl": "https://example.com/formula.jpg"
+  },
+  {
+    "name": "6 ingrédients + Boisson",
+    "imageUrl": "https://example.com/formula.jpg"
+  },
+  {
+    "name": "8 ingrédients + Boisson",
+    "imageUrl": "https://example.com/formula.jpg"
+  }
+]
+```
+
+**CORRECT** ✅ (Add unique query params to make each URL unique)
+```json
+[
+  {
+    "name": "4 ingrédients + Boisson",
+    "imageUrl": "https://example.com/formula.jpg?p=1"
+  },
+  {
+    "name": "6 ingrédients + Boisson",
+    "imageUrl": "https://example.com/formula.jpg?p=2"
+  },
+  {
+    "name": "8 ingrédients + Boisson",
+    "imageUrl": "https://example.com/formula.jpg?p=3"
+  }
+]
+```
+
+**Why this happens:** Chataigne's import deduplicates image downloads by URL. When it encounters a duplicate URL, it should reuse the already-uploaded S3 image for all products, but there's a bug where only the first (or last) product gets the imageUrl assigned.
+
+**The fix:** Add unique query parameters (`?p=1`, `?p=2`, `?o=1` for options) to force each URL to be treated as unique. The CDN ignores unknown query params but Chataigne sees them as different URLs.
+
 ---
 
 ## Key Schema Rules

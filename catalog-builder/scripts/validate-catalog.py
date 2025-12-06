@@ -213,6 +213,52 @@ class CatalogValidator:
                 f"{len(options_without_images)} option(s) sans image"
             )
 
+        # Check for duplicate image URLs (causes import issues!)
+        self._check_duplicate_image_urls()
+
+    def _check_duplicate_image_urls(self):
+        """
+        Check for duplicate image URLs across products.
+
+        IMPORTANT: When multiple products share the exact same imageUrl,
+        Chataigne's import only assigns the S3 image to ONE product.
+        The others end up with no image.
+
+        Workaround: Add unique query params to each URL (e.g., ?p=1, ?p=2)
+        """
+        catalog = self.catalog_json.get('catalog', {})
+
+        # Collect all image URLs and their products
+        url_to_products: dict[str, list[str]] = {}
+
+        for prod in catalog.get('products', []):
+            url = prod.get('imageUrl', '')
+            if url:
+                # Strip existing query params for comparison
+                base_url = url.split('?')[0]
+                if base_url not in url_to_products:
+                    url_to_products[base_url] = []
+                url_to_products[base_url].append(prod.get('name', 'Unknown'))
+
+        # Find duplicates
+        duplicates = {url: prods for url, prods in url_to_products.items() if len(prods) > 1}
+
+        if duplicates:
+            total_affected = sum(len(prods) for prods in duplicates.values())
+            self.warnings.append(
+                f"⚠️  {len(duplicates)} image URL(s) partagée(s) par {total_affected} produits - "
+                f"RISQUE: seul 1 produit par URL recevra l'image lors de l'import! "
+                f"Ajoutez des query params uniques (ex: ?p=1, ?p=2) pour éviter ce problème."
+            )
+
+            # Show first few duplicates
+            for url, prods in list(duplicates.items())[:3]:
+                short_url = '...' + url[-40:] if len(url) > 40 else url
+                self.warnings.append(
+                    f"   → {short_url} utilisée par: {', '.join(prods[:3])}"
+                    + (f" +{len(prods)-3} autres" if len(prods) > 3 else "")
+                )
+
     def _check_empty_entities(self):
         """Check for empty categories or option lists"""
         catalog = self.catalog_json.get('catalog', {})

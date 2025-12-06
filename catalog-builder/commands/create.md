@@ -17,6 +17,20 @@ allowed-tools:
 
 Guide the user through creating a complete Chataigne catalog JSON file for a restaurant.
 
+## Prerequisites
+
+**IMPORTANT:** Before starting, load the catalog schema skill to understand the correct JSON structure:
+
+```
+Use Skill: catalog-builder:catalog-schema
+```
+
+This will help you avoid common mistakes like:
+- Using `image` instead of `imageUrl`
+- Using `minChoices` instead of `minSelections`
+- Using refs instead of names for foreign keys
+- Duplicate image URLs causing missing images after import
+
 ## Workflow
 
 ### Step 1: Gather Information
@@ -45,8 +59,9 @@ Based on the source:
 
 **If Uber Eats URL:**
 - Fetch the page with browser-like headers (use curl with Safari user agent)
-- Extract JSON-LD structured data for menu items
-- Extract unique image URLs for later correlation
+- Extract JSON-LD structured data for menu items (categories, products, prices, descriptions)
+- **Extract product-image mappings directly** (see "Uber Eats Image Extraction" section below)
+- For OPTIONS data, search deeper in the page for customization groups
 
 ### Step 3: Define Categories
 
@@ -79,24 +94,44 @@ For each menu item:
 - Extract image URLs directly
 - Match to products by filename or alt text
 
-**From Uber Eats:**
-- Download all unique images to a temp folder
-- Use Read tool to visually inspect images
-- Ask user to help identify ambiguous images
-- Map identified images to products
-- **Don't forget OPTIONS!** Uber Eats includes images for drinks, sauces, sides
+**From Uber Eats - Direct Extraction Method (PREFERRED):**
 
-**🚀 For 50+ images, use parallel subagents:**
-```
-Launch 4 Task agents in parallel, each identifying a batch of images:
-- Agent 1: images 01-30
-- Agent 2: images 31-60
-- Agent 3: images 61-90
-- Agent 4: images 91-127
+The Uber Eats HTML contains product-image mappings embedded in the page data. You can extract them directly **without downloading or visually inspecting images**:
 
-Each returns a JSON mapping: {"01": "Whopper", "02": "Big King", ...}
-Combine results to build full image mapping ~4x faster.
+```python
+import re
+import json
+
+with open('/tmp/ubereats_page.html', 'r') as f:
+    html = f.read()
+
+# Pattern matches: imageUrl":"https://...","title":"Product Name"
+pattern = r'imageUrl\\u0022:\\u0022(https://[^"\\]+)\\u0022,\\u0022title\\u0022:\\u0022([^"\\]+)\\u0022'
+matches = re.findall(pattern, html)
+
+# Build mapping: product_name -> image_url
+product_images = {}
+for url, title in matches:
+    title = title.replace('\\u0026', '&')
+    url = url.replace('\\u002F', '/')
+    if title not in product_images:
+        product_images[title] = url
+
+print(f"Found {len(product_images)} product-image pairs!")
 ```
+
+**Why this works:** Uber Eats embeds product data in the HTML as escaped JSON. Each product entry contains both `imageUrl` and `title` fields adjacent to each other, allowing direct extraction without image identification.
+
+**Key benefits:**
+- No need to download images to identify them
+- No visual inspection required
+- Works for 100+ products in seconds
+- Also captures images for drinks, sides, and other options
+
+**Don't forget to add images to OPTIONS too!** The extracted images include drinks, sauces, sides that can be matched to option choices.
+
+**⚠️ After extraction, ensure unique URLs:**
+Add query params (`?p=1`, `?p=2`) to any duplicate URLs to prevent Chataigne's import from only assigning images to one product.
 
 ### Step 7: Generate Catalog JSON
 
@@ -194,3 +229,39 @@ Response:
 - Use UPPERCASE_SNAKE_CASE for all ref fields
 - Prices must be objects: `{ "amount": X, "currency": "EUR" }`
 - Use category/option list NAMES (not refs) for all foreign key references
+
+## Uber Eats Options Extraction
+
+**IMPORTANT:** The JSON-LD data only contains products, NOT options/customizations!
+
+Options data (sizes, toppings, sauces, drink choices for menus) are embedded deeper in the page's React state. To extract them:
+
+1. **Search for customization patterns** in the HTML:
+```python
+# Look for customizationGroups or similar patterns
+pattern = r'"customization[^"]*":\s*\[.*?\]'
+# Or search for specific option-related fields
+pattern = r'"title":"([^"]+)".*?"options":\[([^\]]+)\]'
+```
+
+2. **Look for option group structures** containing:
+   - Group name (e.g., "Choix de la taille", "Sauces", "Boissons")
+   - Min/max selections
+   - Individual options with names and prices
+
+3. **Match options to products** that reference them (menus typically have drink + side choices)
+
+4. **Add images to options** using the same product_images mapping extracted earlier:
+```python
+# Options like "Coca-Cola" can use the same image as the product "Coca-Cola®"
+option_to_product = {
+    "Coca-Cola 33cl": "Coca-Cola®",
+    "Frites": "Frites",
+    "Nuggets x4": "Nuggets",
+}
+```
+
+**If options data is not found in the page**, you may need to:
+- Infer options from product descriptions (e.g., "Tailles et viandes au choix")
+- Ask the user to provide the customization options manually
+- Check if there's an API endpoint being called for product details
