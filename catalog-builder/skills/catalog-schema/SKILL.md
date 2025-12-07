@@ -413,7 +413,23 @@ For complete examples and validation rules:
 ### Validation
 
 Use the `/catalog-builder:validate` command to check catalog integrity:
-- Schema structure validation
-- Foreign key reference checking
-- Missing image detection
-- Duplicate ref detection
+
+**Errors (blocks import):**
+- Missing required fields (name, categoryName, sku, etc.)
+- Invalid foreign key references (with fuzzy "did you mean?" suggestions)
+- Duplicate refs or names
+- Invalid discount type/level
+- Deal structure issues (missing lines, skus, skuName)
+- Option list constraint violations (maxSelections < minSelections)
+
+**Warnings (import will work but may have issues):**
+- Missing images on products/options
+- Duplicate image URLs (import bug - only 1 product gets the image!)
+- Empty categories or option lists
+- Invalid ref format (suggests UPPERCASE_SNAKE_CASE)
+- Insufficient options for minSelections
+
+Run validation directly:
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/validate-catalog.py /path/to/catalog.json
+```
